@@ -1,0 +1,762 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apache Cassandra - Juego interactivo</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: #0b1120;
+    color: #e5e7eb;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+header {
+    padding: 20px 30px;
+    background: #111827;
+    border-bottom: 1px solid #293548;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 22px;
+    color: #60a5fa;
+}
+
+header span {
+    color: #22c55e;
+    font-size: 12px;
+}
+
+main {
+    max-width: 1300px;
+    margin: auto;
+    padding: 25px;
+}
+
+.progress {
+    display: flex;
+    gap: 7px;
+    margin-bottom: 25px;
+}
+
+.progress div {
+    height: 5px;
+    flex: 1;
+    background: #263449;
+    border-radius: 10px;
+}
+
+.progress div.active { background: #3b82f6; }
+
+.phase {
+    color: #60a5fa;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 25px;
+    margin: 5px 0 10px;
+}
+
+.description {
+    color: #9ca3af;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 20px;
+}
+
+.panel {
+    background: #111827;
+    border: 1px solid #293548;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.panel-title {
+    padding: 13px 17px;
+    background: #1a2638;
+    color: #93c5fd;
+    font-size: 12px;
+    border-bottom: 1px solid #293548;
+    display: flex;
+    justify-content: space-between;
+}
+
+pre {
+    padding: 20px;
+    margin: 0;
+    min-height: 330px;
+    overflow-x: auto;
+    color: #d1d5db;
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+.nodes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 15px;
+}
+
+.node {
+    background: #1e293b;
+    border: 1px solid #374151;
+    border-radius: 9px;
+    padding: 15px 7px;
+    text-align: center;
+    min-width: 0;
+}
+
+.node .icon { font-size: 28px; }
+
+.node h3 {
+    margin: 9px 0;
+    font-size: 14px;
+}
+
+.status {
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 7px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.online {
+    color: #86efac;
+    background: #14532d;
+}
+
+.offline {
+    color: #fca5a5;
+    background: #7f1d1d;
+}
+
+.data {
+    color: #93c5fd;
+    font-size: 11px;
+    margin-top: 12px;
+    line-height: 1.8;
+    min-height: 65px;
+}
+
+.output { margin-top: 20px; }
+
+.output-content {
+    padding: 17px;
+    min-height: 100px;
+    font-size: 13px;
+    line-height: 1.9;
+}
+
+.success { color: #86efac; }
+.error { color: #fca5a5; }
+.info { color: #93c5fd; }
+
+.explanation {
+    margin-top: 20px;
+    padding: 17px;
+    border-left: 3px solid #3b82f6;
+    background: #111827;
+    color: #cbd5e1;
+    line-height: 1.8;
+    font-size: 13px;
+}
+
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+
+button {
+    border: 0;
+    padding: 12px 20px;
+    border-radius: 7px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.primary {
+    background: #2563eb;
+    color: white;
+}
+
+.secondary {
+    background: #263449;
+    color: white;
+}
+
+button:hover:not(:disabled) { filter: brightness(1.2); }
+
+.counter {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.legend {
+    padding: 0 15px 15px;
+    font-size: 11px;
+    color: #9ca3af;
+    line-height: 1.8;
+}
+
+footer {
+    text-align: center;
+    color: #64748b;
+    font-size: 11px;
+    padding: 25px;
+}
+
+@media(max-width: 850px) {
+    .layout { grid-template-columns: 1fr; }
+    header { flex-wrap: wrap; }
+    main { padding: 15px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>⚡ APACHE CASSANDRA</h1>
+    <span>● SIMULACIÓN INTERACTIVA</span>
+</header>
+
+<main>
+
+    <div class="progress" id="progress"></div>
+
+    <div class="phase" id="phase"></div>
+    <h2 id="title"></h2>
+    <div class="description" id="description"></div>
+
+    <div class="layout">
+
+        <section class="panel">
+            <div class="panel-title">
+                <span>CONSOLA CQL</span>
+                <span>cqlsh</span>
+            </div>
+            <pre id="code"></pre>
+        </section>
+
+        <section class="panel">
+            <div class="panel-title">
+                <span>CLÚSTER CASSANDRA</span>
+                <span>SIMULACIÓN</span>
+            </div>
+
+            <div class="nodes" id="nodes"></div>
+
+            <div class="legend">
+                <span class="success">● Verde:</span> nodo activo.<br>
+                <span class="error">● Rojo:</span> nodo desconectado.
+            </div>
+        </section>
+
+    </div>
+
+    <section class="panel output">
+        <div class="panel-title">
+            <span>RESULTADO DE LA CONSULTA</span>
+            <span>OUTPUT</span>
+        </div>
+
+        <div class="output-content" id="output"></div>
+    </section>
+
+    <div class="explanation" id="explanation"></div>
+
+    <div class="controls">
+        <button class="secondary" id="prev" onclick="previous()">
+            ← ANTERIOR
+        </button>
+
+        <span class="counter" id="counter"></span>
+
+        <button class="secondary" onclick="resetDemo()">
+            ↻ REINICIAR
+        </button>
+
+        <button class="primary" id="next" onclick="next()">
+            SIGUIENTE →
+        </button>
+    </div>
+
+</main>
+
+<footer>
+    DEMOSTRACIÓN EDUCATIVA · APACHE CASSANDRA
+    · REPLICACIÓN · CONSISTENCIA · TOLERANCIA A FALLOS
+</footer>
+
+<script>
+
+// DISTRIBUCIÓN PEDAGÓGICA DE LOS DATOS
+//
+// ANA: B y C
+// LUIS: A, B y C
+
+const steps = [
+
+{
+    phase: "FASE 01 / PREPARACIÓN",
+    title: "Creación de la base de datos",
+
+    description:
+        "Preparamos el espacio de datos y la tabla de horarios de ingreso.",
+
+    code: `-- Crear el espacio de datos
+
+CREATE KEYSPACE universidad
+WITH REPLICATION = {
+    'class': 'SimpleStrategy',
+    'replication_factor': 3
+};
+
+USE universidad;
+
+-- Crear tabla de horarios
+
+CREATE TABLE horarios (
+    usuario TEXT PRIMARY KEY,
+    hora_ingreso TEXT
+);`,
+
+    nodes: [true, true, true],
+
+    data: [
+        [], [], []
+    ],
+
+    output:
+        `<span class="success">✓ KEYSPACE universidad preparado.</span><br>
+         <span class="success">✓ Tabla horarios creada.</span><br>
+         <span class="info">✓ Clave de partición: usuario.</span>`,
+
+    explanation:
+        "La clave de partición será el usuario. Para esta actividad vamos a utilizar una distribución pedagógica: Ana tendrá copias en B y C, mientras que Luis tendrá copias en A, B y C."
+},
+
+{
+    phase: "FASE 02 / ESCRITURA",
+    title: "Registrar los horarios de ingreso",
+
+    description:
+        "Ana ingresa a las 07:00 AM y Luis ingresa a las 10:00 AM.",
+
+    code: `-- Registrar el ingreso de Ana
+
+INSERT INTO horarios (usuario, hora_ingreso)
+VALUES ('ana', '07:00 AM');
+
+-- Registrar el ingreso de Luis
+
+INSERT INTO horarios (usuario, hora_ingreso)
+VALUES ('luis', '10:00 AM');
+
+-- Consultar los registros
+
+SELECT * FROM horarios;`,
+
+    nodes: [true, true, true],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"]
+    ],
+
+    output:
+        `<span class="success">✓ Ana registrada: 07:00 AM.</span><br>
+         <span class="success">✓ Luis registrado: 10:00 AM.</span><br>
+         <span class="info">Distribución pedagógica:</span><br>
+         Ana → B y C.<br>
+         Luis → A, B y C.`,
+
+    explanation:
+        "Los compañeros deben colocar las tarjetas de Ana en B y C. Después deben colocar las tarjetas de Luis en los tres nodos. Así mostramos que los dos usuarios tienen distribuciones diferentes en nuestro modelo educativo."
+},
+
+{
+    phase: "FASE 03 / LECTURA ONE",
+    title: "Consultar el ingreso de Ana",
+
+    description:
+        "Un compañero solicita conocer el horario de ingreso de Ana utilizando consistencia ONE.",
+
+    code: `-- Configurar consistencia ONE
+
+CONSISTENCY ONE;
+
+-- Consultar el horario de Ana
+
+SELECT * FROM horarios
+WHERE usuario = 'ana';`,
+
+    nodes: [true, true, true],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"]
+    ],
+
+    output:
+        `<span class="success">✓ CONSULTA EXITOSA.</span><br>
+         Usuario: ana<br>
+         Hora de ingreso: 07:00 AM<br>
+         <span class="info">Respuesta obtenida desde una réplica: B.</span>`,
+
+    explanation:
+        "ONE necesita una respuesta de una réplica. En el juego, el compañero recibe la tarjeta de Ana desde el nodo B."
+},
+
+{
+    phase: "FASE 04 / PRIMER FALLO",
+    title: "Desconectamos el nodo B",
+
+    description:
+        "El compañero que representa al nodo B se aparta. Ahora consultamos a Ana y a Luis.",
+
+    code: `-- El nodo B deja de responder
+
+-- Consultar a Ana con ONE
+
+CONSISTENCY ONE;
+
+SELECT * FROM horarios
+WHERE usuario = 'ana';
+
+-- Consultar a Luis con QUORUM
+
+CONSISTENCY QUORUM;
+
+SELECT * FROM horarios
+WHERE usuario = 'luis';`,
+
+    nodes: [true, false, true],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        [],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"]
+    ],
+
+    output:
+        `<span class="success">✓ ANA CON ONE:</span><br>
+         Respuesta desde C.<br>
+         Horario: 07:00 AM.<br><br>
+         <span class="success">✓ LUIS CON QUORUM:</span><br>
+         Nodo A: respuesta recibida.<br>
+         Nodo C: respuesta recibida.<br>
+         <span class="info">Dos respuestas de tres.</span><br>
+         <span class="success">QUORUM alcanzado.</span>`,
+
+    explanation:
+        "Ana sigue disponible porque C conserva una copia. Luis tiene tres réplicas y todavía puede conseguir dos respuestas desde A y C. En el modelo pedagógico de Ana, QUORUM necesitaría sus dos réplicas."
+},
+
+{
+    phase: "FASE 05 / SEGUNDO FALLO",
+    title: "Desconectamos también el nodo C",
+
+    description:
+        "Ahora solamente queda disponible el nodo A. Probamos nuevamente las consultas.",
+
+    code: `-- El nodo C también deja de responder
+
+-- Consultar a Ana con ONE
+
+CONSISTENCY ONE;
+
+SELECT * FROM horarios
+WHERE usuario = 'ana';
+
+-- Consultar a Luis con QUORUM
+
+CONSISTENCY QUORUM;
+
+SELECT * FROM horarios
+WHERE usuario = 'luis';`,
+
+    nodes: [true, false, false],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        [],
+        []
+    ],
+
+    output:
+        `<span class="error">✗ ANA CON ONE:</span><br>
+         Sin réplicas disponibles.<br><br>
+         <span class="error">✗ LUIS CON QUORUM:</span><br>
+         Respuestas necesarias: 2.<br>
+         Respuestas disponibles: 1.<br>
+         <span class="error">QUORUM no alcanzado.</span>`,
+
+    explanation:
+        "Ana no puede consultarse porque sus dos copias estaban en B y C. Luis conserva una copia en A, por lo que todavía podría responder con ONE, pero no con QUORUM."
+},
+
+{
+    phase: "FASE 06 / LECTURA ONE",
+    title: "Luis todavía puede responder",
+
+    description:
+        "Con A como único nodo activo, volvemos a consultar el horario de Luis utilizando ONE.",
+
+    code: `-- Configurar consistencia ONE
+
+CONSISTENCY ONE;
+
+-- Consultar el horario de Luis
+
+SELECT * FROM horarios
+WHERE usuario = 'luis';`,
+
+    nodes: [true, false, false],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        [],
+        []
+    ],
+
+    output:
+        `<span class="success">✓ CONSULTA EXITOSA.</span><br>
+         Usuario: luis<br>
+         Hora de ingreso: 10:00 AM<br>
+         <span class="info">Respuesta obtenida desde A.</span><br>
+         <span class="success">ONE alcanzado: 1 respuesta.</span>`,
+
+    explanation:
+        "Luis todavía puede consultarse porque tiene una copia en A. ONE solamente necesita una respuesta. Esto demuestra la diferencia entre disponibilidad y nivel de consistencia."
+},
+
+{
+    phase: "FASE 07 / RESTAURACIÓN",
+    title: "Restauramos los tres nodos",
+
+    description:
+        "Los compañeros que representaban a B y C vuelven a sus lugares. Todos los nodos están activos.",
+
+    code: `-- Restauración de los nodos
+
+-- Configurar consistencia QUORUM
+
+CONSISTENCY QUORUM;
+
+-- Consultar a Ana
+
+SELECT * FROM horarios
+WHERE usuario = 'ana';
+
+-- Consultar a Luis
+
+SELECT * FROM horarios
+WHERE usuario = 'luis';`,
+
+    nodes: [true, true, true],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"]
+    ],
+
+    output:
+        `<span class="success">✓ Nodo A restaurado.</span><br>
+         <span class="success">✓ Nodo B restaurado.</span><br>
+         <span class="success">✓ Nodo C restaurado.</span><br><br>
+         <span class="success">✓ Los nodos vuelven a estar disponibles.</span>`,
+
+    explanation:
+        "Con los nodos restaurados, recuperamos la disponibilidad de las copias. En Cassandra real, la sincronización y recuperación de réplicas siguen mecanismos propios, no simplemente el regreso físico del nodo."
+},
+
+{
+    phase: "FASE 08 / CIERRE",
+    title: "Fin de la demostración",
+
+    description:
+        "Repasamos los conceptos que representamos durante el juego.",
+
+    code: `-- RESUMEN DE LA ACTIVIDAD
+
+PARTITION KEY = usuario;
+
+REPLICATION FACTOR = 3;
+
+CONSISTENCY ONE;
+-- Una respuesta.
+
+CONSISTENCY QUORUM;
+-- Mayoría de las réplicas.
+
+-- FIN DE LA SIMULACIÓN`,
+
+    nodes: [true, true, true],
+
+    data: [
+        ["Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"],
+        ["Ana | 07:00 AM", "Luis | 10:00 AM"]
+    ],
+
+    output:
+        `<span class="success">✓ Clave de partición.</span><br>
+         <span class="success">✓ Coordinador.</span><br>
+         <span class="success">✓ Replicación.</span><br>
+         <span class="success">✓ Consistencia ONE.</span><br>
+         <span class="success">✓ Consistencia QUORUM.</span><br>
+         <span class="success">✓ Tolerancia a fallos.</span>`,
+
+    explanation:
+        "Cassandra distribuye y replica datos para permitir que el sistema siga respondiendo ante determinados fallos. La cantidad de respuestas exigidas depende del nivel de consistencia y del factor de replicación."
+}
+
+];
+
+let current = 0;
+
+function render() {
+
+    const step = steps[current];
+
+    document.getElementById("phase").textContent =
+        step.phase;
+
+    document.getElementById("title").textContent =
+        step.title;
+
+    document.getElementById("description").textContent =
+        step.description;
+
+    document.getElementById("code").textContent =
+        step.code;
+
+    document.getElementById("output").innerHTML =
+        step.output;
+
+    document.getElementById("explanation").textContent =
+        step.explanation;
+
+    document.getElementById("counter").textContent =
+        `ETAPA ${current + 1} DE ${steps.length}`;
+
+    document.getElementById("prev").disabled =
+        current === 0;
+
+    document.getElementById("next").textContent =
+        current === steps.length - 1
+        ? "FINALIZADO ✓"
+        : "SIGUIENTE →";
+
+    document.getElementById("next").disabled =
+        current === steps.length - 1;
+
+    // BARRA DE PROGRESO
+
+    document.getElementById("progress").innerHTML =
+        steps.map((step, index) =>
+            `<div class="${index <= current ? 'active' : ''}"></div>`
+        ).join("");
+
+    // REPRESENTACIÓN DE LOS NODOS
+
+    const names = ["A", "B", "C"];
+
+    document.getElementById("nodes").innerHTML =
+        step.nodes.map((active, index) => {
+
+            const records = step.data[index];
+
+            return `
+                <div class="node">
+
+                    <div class="icon">🖥️</div>
+
+                    <h3>NODO ${names[index]}</h3>
+
+                    <span class="status ${active ? 'online' : 'offline'}">
+                        ${active ? '● ACTIVO' : '● DESCONECTADO'}
+                    </span>
+
+                    <div class="data">
+                        ${
+                            records.length
+                            ? records.join("<br>")
+                            : "Sin datos disponibles"
+                        }
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+
+}
+
+function next() {
+
+    if (current < steps.length - 1) {
+        current++;
+        render();
+    }
+
+}
+
+function previous() {
+
+    if (current > 0) {
+        current--;
+        render();
+    }
+
+}
+
+function resetDemo() {
+
+    current = 0;
+    render();
+
+}
+
+// INICIAR SIMULACIÓN
+
+render();
+
+</script>
+
+</body>
+</html>
